@@ -203,9 +203,6 @@ void timersProcess( void ) {
 	// Таймаут для считывания датчиков двери
 	if ( secondFlag ) {
 		secondFlag = FALSE;
-		flowCount += 8;
-		flowGetVolume();
-		flowSecondProcess();
 	}
 }
 

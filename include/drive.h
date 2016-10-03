@@ -77,6 +77,6 @@ void driveStop(void);
 float driveGetAngle(void);
 void driveSetAngle(float Angle);
 
-void driveProcess(void);
+int driveProcess(void);
 
 #endif /* DRIVE_H_ */

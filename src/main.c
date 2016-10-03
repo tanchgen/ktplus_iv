@@ -10,6 +10,7 @@
 #include <string.h>
 #include "stm32f10x.h"
 #include "my_time.h"
+#include "drive.h"
 #include "main.h"
 
 uint32_t VlvDevId;			// Иденитификатор контроллера задвижки

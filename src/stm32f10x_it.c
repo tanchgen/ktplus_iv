@@ -157,7 +157,6 @@ void EXTI3_IRQHandler(void){
   */
 void EXTI15_10_IRQHandler(void){
 	if (EXTI_GetITStatus(FLOW_SENS_EXTI_LINE)) {
-		flowCount++;
 		EXTI_ClearITPendingBit(FLOW_SENS_EXTI_LINE);
 	}
 }

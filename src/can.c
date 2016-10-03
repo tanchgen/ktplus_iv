@@ -8,7 +8,9 @@
 #include <main.h>
 #include "stm32f10x_conf.h"
 #include "my_time.h"
+#include "drive.h"
 #include "buffer.h"
+#include "can.h"
 
 	uint32_t selfDevId;
 
@@ -104,7 +106,7 @@ void canFilterInit( void ){
 
 // Формируем фильтр для приема пакетов от S207
 	canId.adjCur = ADJ;
-	canId.coldHot = coldHot;
+	canId.coldHot = valve.coldHot;
 	canId.msgId = NULL_MES;
 	canId.s207 = S207_DEV;
 	canId.devId = selfDevId;

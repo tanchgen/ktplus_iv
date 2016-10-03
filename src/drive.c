@@ -20,12 +20,6 @@ int driveInit( void ){
 	return ret;
 }
 
-int hollInit( void ){
-	int ret = 0;
-
-	return ret;
-}
-
 int testPinInit( void ){
 	GPIO_InitTypeDef test_InitStructure;
 
@@ -146,6 +140,18 @@ int hollInit( void ){
 	DRIVE_NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&DRIVE_NVIC_InitStructure);
 
+
+	return ret;
+}
+
+int switchInit( void ){
+	int ret = 0;
+
+	return ret;
+}
+
+int driveProcess( void ){
+	int ret = 0;
 
 	return ret;
 }
