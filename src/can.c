@@ -70,7 +70,7 @@ void canInit(void)
 
 void canBspInit( void ){
 	RCC->APB1ENR |= RCC_APB1ENR_CAN1EN;
-	RCC->APB2ENR |= CAN_RCC_GPIOEN;
+	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
 	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
 
 #if ( CAN_RX_PIN_NUM > 7)
@@ -271,7 +271,10 @@ void canProcess( void ){
   	getIdList( &canid, rxMessage.ExtId );
   	switch( canid.msgId ){
   		case VALVE_DEG:
-  			valve.degAdj = (uint8_t)*((uint32_t *)&rxMessage.Data);
+  			valve.adjDeg = (uint8_t)*((uint32_t *)&rxMessage.Data);
+  			if( valve.adjDeg > 90 ){
+  				valve.adjDeg = 90;
+  			}
   			break;
   		case TIME:
   			uxTime = *((uint32_t *)&rxMessage.Data);

@@ -13,17 +13,10 @@
 #include <time.h>
 
 
-#define DELAY_RCC_TIM 					RCC_APB1Periph_TIM4
-#define DELAY_TIM 							TIM4
-#define DELAY_NVIC_IRQCHANNEL 	TIM4_IRQn
-#define DELAY_NVIC_IRQHANDLER 	TIM4_IRQHandler
-
-void DELAY_Init(void);
-void DELAY_Count_mS(uint16_t mS);
-void DELAY_Count_uS(uint16_t uS);
-void DELAY_TimeOut_mS(uint16_t mS);
-void DELAY_TimeOut_uS(uint16_t mS);
-uint8_t DELAY_Check(void);
+#define DEBOUNCE_RCC_TIM 					RCC_APB1Periph_TIM4
+#define DEBOUNCE_TIM 							TIM4
+#define DEBOUNCE_NVIC_IRQCHANNEL 	TIM4_IRQn
+#define DEBOUNCE_NVIC_IRQHANDLER 	TIM4_IRQHandler
 
 #define TIMER_FREQUENCY_HZ (1000u)
 typedef uint32_t timer_ticks_t;
@@ -102,8 +95,7 @@ void timeToStr( time_t ut, uint8_t *str );
 
 void timersHandler( void );
 
-void delayUsInit( void );
+void debounceInit( void );
 void myDelay( uint32_t del );
-void usDelay( uint32_t usDel );
 
 #endif /* UNIX_TIME_H_ */

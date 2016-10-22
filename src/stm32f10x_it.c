@@ -27,11 +27,13 @@
 #include "stm32f10x_it.h"
 #include "my_time.h"
 #include "can.h"
+#include "drive.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -166,10 +168,46 @@ void EXTI15_10_IRQHandler(void){
 /*  available peripheral interrupt handler's name please refer to the startup */
 /*  file (startup_stm32f2xx.s).                                               */
 /******************************************************************************/
-void TIM4_IRQHandler( void ){
-	if(usDelFlag){
-		usDelFlag = FALSE;
+void SWITCH_IRQHandler( void ){
+	if (EXTI_GetITStatus(SWITCH_OPEN_EXTI_LINE)) {
+		if( valve.dir == DIR_FOREWARD){
+			valve.state = STATE_NEED_STOP;
+		}
+		EXTI_ClearITPendingBit(SWITCH_OPEN_EXTI_LINE);
 	}
+	else if (EXTI_GetITStatus(SWITCH_CLOSE_EXTI_LINE)) {
+		if( valve.dir == DIR_BACKWARD){
+			valve.state = STATE_NEED_STOP;
+		}
+		EXTI_ClearITPendingBit(SWITCH_CLOSE_EXTI_LINE);
+	}
+	if( DEBOUNCE_TIM->CR1 & TIM_CR1_CEN ){
+		DEBOUNCE_TIM->CR1 |= TIM_CR1_CEN;
+	}
+}
+
+void HOLL_IRQHandler( void ){
+	if (EXTI_GetITStatus(HOLL_EXTI_LINE)){
+		if(HOLL_PORT->IDR & HOLL_COS_PIN) {
+			valve.hollCount--;
+		}
+		else {
+			valve.hollCount++;
+		}
+		EXTI_ClearITPendingBit(HOLL_EXTI_LINE);
+	}
+}
+
+void TIM4_IRQHandler( void ){
+	valve.sw = SW_NON;
+	if( (SWITCH_OPEN_PORT->IDR & SWITCH_OPEN_PIN) == 0 ){
+		valve.sw = SW_OPEN;
+	}
+	else if( (SWITCH_CLOSE_PORT->IDR & SWITCH_CLOSE_PIN) == 0 ){
+		valve.sw = SW_CLOSE;
+	}
+	DEBOUNCE_TIM->CR1 &= ~TIM_CR1_CEN;
+	DEBOUNCE_TIM->SR &= ~TIM_SR_UIF;
 }
 
 void USB_LP_CAN1_RX0_IRQHandler(void)
@@ -178,9 +216,6 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 }
 
 void USB_HP_CAN1_TX_IRQHandler( void ){
-	canTxIrqHandler();
-}
-void CAN1_TX_IRQHandler( void ) {
 	canTxIrqHandler();
 }
 

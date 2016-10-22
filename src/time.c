@@ -15,7 +15,7 @@
 #include "stm32f10x.h"
 #include "my_time.h"
 #include "stm32f10x_it.h"
-//#include "onewire.h"
+#include "drive.h"
 //#include "logger.h"
 //#include "thermo.h"
 
@@ -178,7 +178,7 @@ void timersHandler( void ) {
 	if ( !(myTick % 1000) ) {
 		secondFlag = TRUE;
 		uxTime++;
-		xUtime2Tm( &sysDate, & sysTime, uxTime );
+		xUtime2Tm( &sysDate, &sysTime, uxTime );
 	}
 
 
@@ -192,57 +192,32 @@ void timersProcess( void ) {
 		toLogWrite();
 	}
 */
-	// Таймаут для считывания температуры
-	if ( toReadCount == 1 ) {
-		int16_t tmpTo;
-		toReadCount += TO_READ_TOUT;
-		// Датчика входящей температуры нет, поэтому имитируем показания
-//		toReadTemperature( TO_IN );
-	}
-
-	// Таймаут для считывания датчиков двери
+	// Флаг "Прошла еще  одна секунда"
 	if ( secondFlag ) {
 		secondFlag = FALSE;
+		if ( sysTime.Seconds == 0 ){
+			// Каждую минуту отправляем текущее  положение задвижки
+			canSendMsg( VALVE_DEG, valve.curDeg );
+		}
 	}
 }
 
 // Инициализация таймера микросекундных задержек
-void delayUsInit( void ) {
-	NVIC_InitTypeDef DELAY_NVIC_InitStructure;
-
+void debounceInit( void ) {
 
 	RCC->APB1ENR |= RCC_APB1ENR_TIM4EN;
 
-	TIM_DeInit(DELAY_TIM);
-	DELAY_TIM->CR1 &= ~TIM_CR1_CEN;
+	TIM_DeInit(DEBOUNCE_TIM);
+	DEBOUNCE_TIM->CR1 &= ~TIM_CR1_CEN;
 	// Выставляем счетчик на 0,5 мкс
-	DELAY_TIM->PSC = (RCC_Clocks.PCLK2_Frequency/2000000) - 1;
-	DELAY_TIM->ARR = 0xFFFF;
-	DELAY_TIM->CR1 &= ~TIM_CR1_CKD;
-	DELAY_TIM->CR1 &= ~TIM_CR1_DIR;		// Считаем на возрастание
+	DEBOUNCE_TIM->PSC = (RCC_Clocks.PCLK2_Frequency/1000) - 1;			// Считаем миллисекунды
+	DEBOUNCE_TIM->ARR = 49;								// До 50-и миллисекунд
+	DEBOUNCE_TIM->CR1 &= ~TIM_CR1_CKD;
+	DEBOUNCE_TIM->CR1 &= ~TIM_CR1_DIR;		// Считаем на возрастание
+	DEBOUNCE_TIM->DIER |= TIM_DIER_UIE;
 
-/*
-	TIM_ITConfig(DELAY_TIM, TIM_IT_Update, ENABLE);
-	DELAY_NVIC_InitStructure.NVIC_IRQChannel = DELAY_NVIC_IRQCHANNEL;
-	DELAY_NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-	DELAY_NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-	DELAY_NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&DELAY_NVIC_InitStructure);
-*/
-}
-
-// Задержка в 0,5 мкс
-
-void usDelay( uint32_t usDel ){
-
-	DELAY_TIM->ARR = usDel-1;
-	DELAY_TIM->CNT = 0;
-	DELAY_TIM->CR1 |= TIM_CR1_CEN;
-
-	while( !(DELAY_TIM->SR & TIM_SR_UIF) )
-	{}
-	DELAY_TIM->CR1 &= ~TIM_CR1_CEN;
-	DELAY_TIM->SR &= ~TIM_SR_UIF;
+	NVIC_EnableIRQ( DEBOUNCE_NVIC_IRQCHANNEL );
+	NVIC_SetPriority( DEBOUNCE_NVIC_IRQCHANNEL, 0xF );
 }
 
 // Задержка в мс

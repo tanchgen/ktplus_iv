@@ -14,7 +14,6 @@
 #include "main.h"
 
 uint32_t VlvDevId;			// Иденитификатор контроллера задвижки
-uint8_t coldHot;
 
 RCC_ClocksTypeDef RCC_Clocks;
 
@@ -31,18 +30,18 @@ int main(int argc, char* argv[]) {
   // Use SysTick as reference for the delay loops.
   SysTick_Config (SystemCoreClock / TIMER_FREQUENCY_HZ);
 
-
-#warning " !!! Указать, какому контуру принадлежит контроллер (Горячий/Холодный)"
-  valve.coldHot = HOT;
   //Инициализация концевиков
   switchInit();
-  // Инициализация двигателя
-  driveInit();
   // Инициализация датчика Холла
   hollInit();
+  // Инициализация двигателя
+  driveInit();
   // Инициализация CAN
   canInit();
-  delayUsInit();
+  // Инциализация таймера дребезга
+  debounceInit();
+  // Общая инициализация контроллера
+  valveInit();
 
 
   // Infinite loop
