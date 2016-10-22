@@ -5,7 +5,7 @@
  *      Author: Gennady Tanchin <g.tanchin@yandex.ru>
  */
 
-#include <main.h>
+//#include <main.h>
 #include "stm32f10x_conf.h"
 #include "my_time.h"
 #include "drive.h"
@@ -13,19 +13,14 @@
 #include "can.h"
 
 	uint32_t selfDevId;
+	uint32_t valveDevId;
+
+#define CIRCUIT			COLD
 
 void getIdList( tCanId *canid, uint32_t extId);
 
-void canInit(void)
-{
+void canCoreInit( void ){
 	CAN_InitTypeDef CAN_InitStruct;
-	NVIC_InitTypeDef CAN_NVIC_InitStruct;
-
-	RCC->APB1ENR |= RCC_APB1Periph_CAN1;
-
-#define DEV_SIGNATURE			0x1FFFF7E8
-	selfDevId = (*(uint32_t *)DEV_SIGNATURE) & 0xFFFFF;
-	canBspInit();
 
 	CAN_DeInit(CAN_CAN);
 	CAN_InitStruct.CAN_Prescaler = 18;
@@ -43,7 +38,25 @@ void canInit(void)
 
 	canFilterInit();
 
-	CAN_ITConfig(CAN_CAN, CAN_IT_FMP0 | CAN_IT_FMP1 | CAN_IT_TME | CAN_IT_ERR | CAN_IT_BOF, ENABLE);
+	CAN_ITConfig(CAN_CAN, CAN_IT_FMP0, ENABLE);
+	CAN_ITConfig(CAN_CAN, CAN_IT_TME, ENABLE);
+	CAN_ITConfig(CAN_CAN, CAN_IT_ERR, ENABLE);
+	CAN_ITConfig(CAN_CAN, CAN_IT_BOF, ENABLE);
+
+}
+void canInit(void)
+{
+	NVIC_InitTypeDef CAN_NVIC_InitStruct;
+
+#define DEV_SIGNATURE			(0x1FFF7A10+8)
+	valveDevId = (*(uint32_t *)DEV_SIGNATURE) & 0xFFFFF;
+
+	RCC->APB1ENR |= RCC_APB1Periph_CAN1;
+
+	canBspInit();
+
+	canCoreInit();
+
 	CAN_NVIC_InitStruct.NVIC_IRQChannel = CAN1_RX0_IRQn;
 	CAN_NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 5;
 	CAN_NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
@@ -106,8 +119,8 @@ void canFilterInit( void ){
 
 // Формируем фильтр для приема пакетов от S207
 	canId.adjCur = ADJ;
-	canId.coldHot = valve.coldHot;
-	canId.msgId = NULL_MES;
+	canId.coldHot = CIRCUIT;
+	canId.msgId = VALVE_DEG;
 	canId.s207 = S207_DEV;
 	canId.devId = selfDevId;
 	// Фильтр принимаемых устройств
@@ -117,7 +130,7 @@ void canFilterInit( void ){
 	filter.idMask = 0;
 #else
 	filter.idList = setIdList( &canId );
-	filter.idMask = S207_MASK;
+	filter.idMask = CUR_ADJ_MASK | MSG_ID_MASK;
 #endif
 
 	filter.ideList = 0;
@@ -127,30 +140,6 @@ void canFilterInit( void ){
 	filterNum = 0;
 
 	canFilterUpdate( &filter, filterNum );
-
-// Формируем фильтр для приема пакетов от контроллера задвижки
-		canId.adjCur = CUR;
-		canId.msgId = VALVE_DEG,								// Угол поворота задвижки
-		canId.s207 = nS207_DEV;
-// TODO: Ввод полученного DevId от контроллера задвижки.
-		canId.devId = VlvDevId;
-		// Фильтр принимаемых устройств
-		filter.idList = setIdList( &canId );
-	#if CAN_TEST
-	// Для тестирования в колбцевом режиме - маска = 0x00000000
-		filter.idMask = 0;
-	#else
-		filter.idMask = CUR_ADJ_MASK | S207_MASK | COLD_HOT_MASK | MSG_ID_MASK | DEV_ID_MASK;
-	#endif
-
-		filter.ideList = 0;
-		filter.ideMask = 0;
-		filter.rtrList = 0;
-		filter.rtrMask = 0;
-		filterNum = 1;
-
-		canFilterUpdate( &filter, filterNum );
-
 }
 
 void canFilterUpdate( tFilter * filter, uint8_t filterNum ) {
@@ -169,7 +158,6 @@ void canFilterUpdate( tFilter * filter, uint8_t filterNum ) {
 	CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
 	CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
 	CAN_FilterInit(&CAN_FilterInitStruct);
-
 }
 
 /*
@@ -238,11 +226,11 @@ void canTxIrqHandler(void) {
 void canSceIrqHandler(void) {
 	if (CAN_GetITStatus(CAN1, CAN_IT_BOF)){
 		CAN_ClearITPendingBit(CAN1, CAN_IT_BOF);
-		canInit();
+		canCoreInit();
 	}
 	if (CAN_GetITStatus(CAN1, CAN_IT_ERR)){
 		CAN_ClearITPendingBit(CAN1, CAN_IT_ERR);
-		canInit();
+		canCoreInit();
 	}
 }
 
@@ -296,7 +284,7 @@ void canSendMsg( eMessId msgId, uint32_t data ) {
 		// Если отправляем новое полодение задвижки контроллеру задвижки
 		canId.adjCur = ADJ;
 // TODO: 	Идентификатор контроллера задвижки
-		canId.devId = VlvDevId;
+		canId.devId = valveDevId;
 	}
 	else {
 		canId.adjCur = CUR;
@@ -304,7 +292,7 @@ void canSendMsg( eMessId msgId, uint32_t data ) {
 	}
 
 	canId.msgId = msgId;
-	canId.coldHot = valve.coldHot;
+	canId.coldHot = CIRCUIT;
 	canId.s207 = nS207_DEV;
 
 	if ( (msgId == TO_IN_MSG) || (msgId == TO_OUT_MSG) || (msgId == TO_DELTA_HOUR) ) {

@@ -61,6 +61,15 @@ typedef struct CanMessageStruct
 #define S207_MASK				(uint32_t)0x00100000
 #define DEV_ID_MASK			(uint32_t)0x000FFFFF
 
+/*
+#define CUR_ADJ_MASK				(uint32_t)0x00000400				// 11 (Старший) бит в StdId
+#define MSG_ID_MASK					(uint32_t)0x000003F0				// 10-5 биты StdId
+#define COLD_HOT_MASK				(uint32_t)0x00000008				// 4 бит StdId
+#define S207_MASK						(uint32_t)0x00000004				// 3 бит StdId
+#define DEV_ID_HI_BIT_MASK	(uint32_t)0x00000003				// 2-1 биты StdId - 18 и 19 биты DEV_ID
+#define DEV_ID_LOW_BIT_MASK	(uint32_t)0x1FFFF800				// 28-12 биты StdId- с 0-го по 17-й биты DEV_ID
+*/
+
 typedef struct {
 	uint8_t adjCur;		// Действующее-задаваемое
 	uint8_t msgId;		// Идентификатор сообщения
@@ -82,6 +91,7 @@ typedef enum {				// Действующее-Задаваемое
 	CUR,
 	ADJ
 } eCurAdj;
+
 
 typedef enum {							// Условный номер сообщения
 	NULL_MES = 0,
@@ -135,9 +145,9 @@ void canBspInit( void );
 void canFilterInit( void );
 void canFilterUpdate( tFilter * filter, uint8_t filterNum );
 
-void canSendMsg( eMessId msgId, uint32_t data );
-
 void canProcess( void );
+
+void canSendMsg( eMessId msgId, uint32_t data );
 
 void canRx0IrqHandler(void);
 void canRx1IrqHandler(void);
@@ -145,4 +155,6 @@ void canTxIrqHandler(void);
 void canSceIrqHandler(void);
 
 uint32_t setIdList( tCanId *canid );
+uint32_t getDevId( uint32_t canExtId );
+
 #endif /* CAN_H_ */

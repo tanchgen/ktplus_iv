@@ -140,16 +140,23 @@ SysTick_Handler (void) {
   timersHandler();
 }
 
-// Прерывание датчика Холла - измерителя потока
-void EXTI9_5_IRQHandler(void){
-}
-
 /**
   * @brief  This function handles External line 3 interrupt request.
   * @param  None
   * @retval None
   */
 void EXTI3_IRQHandler(void){
+}
+
+/******************************************************************************/
+/*                 STM32F2xx Peripherals Interrupt Handlers                   */
+/*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */
+/*  available peripheral interrupt handler's name please refer to the startup */
+/*  file (startup_stm32f2xx.s).                                               */
+/******************************************************************************/
+// Прерывание датчика Холла - измерителя потока
+void EXTI9_5_IRQHandler(void){
+	SWITCH_IRQHandler();
 }
 
 /**
@@ -159,42 +166,8 @@ void EXTI3_IRQHandler(void){
   */
 void EXTI15_10_IRQHandler(void){
 	if (EXTI_GetITStatus(FLOW_SENS_EXTI_LINE)) {
+		HOLL_IRQHandler();
 		EXTI_ClearITPendingBit(FLOW_SENS_EXTI_LINE);
-	}
-}
-/******************************************************************************/
-/*                 STM32F2xx Peripherals Interrupt Handlers                   */
-/*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */
-/*  available peripheral interrupt handler's name please refer to the startup */
-/*  file (startup_stm32f2xx.s).                                               */
-/******************************************************************************/
-void SWITCH_IRQHandler( void ){
-	if (EXTI_GetITStatus(SWITCH_OPEN_EXTI_LINE)) {
-		if( valve.dir == DIR_FOREWARD){
-			valve.state = STATE_NEED_STOP;
-		}
-		EXTI_ClearITPendingBit(SWITCH_OPEN_EXTI_LINE);
-	}
-	else if (EXTI_GetITStatus(SWITCH_CLOSE_EXTI_LINE)) {
-		if( valve.dir == DIR_BACKWARD){
-			valve.state = STATE_NEED_STOP;
-		}
-		EXTI_ClearITPendingBit(SWITCH_CLOSE_EXTI_LINE);
-	}
-	if( DEBOUNCE_TIM->CR1 & TIM_CR1_CEN ){
-		DEBOUNCE_TIM->CR1 |= TIM_CR1_CEN;
-	}
-}
-
-void HOLL_IRQHandler( void ){
-	if (EXTI_GetITStatus(HOLL_EXTI_LINE)){
-		if(HOLL_PORT->IDR & HOLL_COS_PIN) {
-			valve.hollCount--;
-		}
-		else {
-			valve.hollCount++;
-		}
-		EXTI_ClearITPendingBit(HOLL_EXTI_LINE);
 	}
 }
 

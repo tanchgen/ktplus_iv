@@ -8,7 +8,6 @@
 
 #include "drive.h"
 #include "my_time.h"
-#include "can.h"
 
 volatile tValve valve;
 int32_t startHollCount = 0;
@@ -35,10 +34,10 @@ int valveInit( void ){
 int driveInit( void ){
 	int ret = 0;
 
-
 	GPIO_InitTypeDef drive_InitStructure;
 
 	RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
+	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
 	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
 
 	DRIVE_TIM_CH1_PULSE(1);
@@ -61,7 +60,7 @@ int driveInit( void ){
   // Enable the TIM Main Output
   DRIVE_TIM->BDTR |= TIM_BDTR_MOE;
 
-  return ret;
+	return ret;
 }
 
 int testPinInit( void ){
@@ -81,6 +80,8 @@ static int drivePwmInit( void ){
 	int ret = 0;
 	TIM_TimeBaseInitTypeDef DRIVE_TimeBaseStructure;
 	TIM_OCInitTypeDef DRIVE_OCInitStructure;
+
+
 
 	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
 
@@ -121,22 +122,23 @@ int hollInit( void ){
 	EXTI_InitTypeDef holl_EXTI_InitStructure;
 	GPIO_InitTypeDef holl_InitStructure;
 
-	RCC->APB1ENR |= RCC_APB2ENR_IOPBEN;
+	HOLL_PORT_CLK_ENABLE;
+	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
 
 	holl_InitStructure.GPIO_Pin = HOLL_SIN_PIN | HOLL_COS_PIN;
 	holl_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	holl_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(HOLL_PORT, &holl_InitStructure);
 
-	GPIO_EXTILineConfig(HOLL_PORT_NUM, HOLL_COS_PIN_NUM);
+	GPIO_EXTILineConfig(HOLL_PORTSOURCE, HOLL_PINSOURCE);
 	holl_EXTI_InitStructure.EXTI_Line = HOLL_EXTI_LINE;
 	holl_EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
 	holl_EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
 	holl_EXTI_InitStructure.EXTI_LineCmd = ENABLE;
 	EXTI_Init(&holl_EXTI_InitStructure);
 
-	NVIC_EnableIRQ( EXTI15_10_IRQn );
-	NVIC_SetPriority( EXTI15_10_IRQn, 3);
+	NVIC_EnableIRQ(HOLL_IRQCHANNEL);
+	NVIC_SetPriority(HOLL_IRQCHANNEL, 3);
 
 	return ret;
 }
@@ -146,14 +148,16 @@ int switchInit( void ){
 	EXTI_InitTypeDef switch_EXTI_InitStructure;
 	GPIO_InitTypeDef switch_InitStructure;
 
-	RCC->APB1ENR |= RCC_APB2ENR_IOPBEN;
+	SWITCH_OPEN_PORT_CLK_ENABLE;
+	SWITCH_CLOSE_PORT_CLK_ENABLE;
+	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
 
 	switch_InitStructure.GPIO_Pin = SWITCH_OPEN_PIN | SWITCH_CLOSE_PIN;
 	switch_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	switch_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(SWITCH_OPEN_PORT, &switch_InitStructure);
 
-	GPIO_EXTILineConfig(SWITCH_OPEN_PORT_NUM, SWITCH_OPEN_PIN_NUM);
+	GPIO_EXTILineConfig(SWITCH_OPEN_PORTSOURCE, SWITCH_OPEN_PINSOURCE);
 
 	switch_EXTI_InitStructure.EXTI_Line = SWITCH_OPEN_EXTI_LINE;
 	switch_EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
@@ -161,7 +165,7 @@ int switchInit( void ){
 	switch_EXTI_InitStructure.EXTI_LineCmd = ENABLE;
 	EXTI_Init(&switch_EXTI_InitStructure);
 
-	GPIO_EXTILineConfig(SWITCH_CLOSE_PORT_NUM, SWITCH_CLOSE_PIN_NUM);
+	GPIO_EXTILineConfig(SWITCH_OPEN_PORTSOURCE, SWITCH_CLOSE_PINSOURCE);
 
 	switch_EXTI_InitStructure.EXTI_Line = SWITCH_CLOSE_EXTI_LINE;
 	switch_EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
@@ -191,7 +195,6 @@ int switchInit( void ){
 	}
 	return ret;
 }
-
 
 void driveStart( eDirect dir, eSpeed speed ) {
 	if ( ( dir == DIR_FOREWARD) && (valve.sw != SW_OPEN) ) {
@@ -249,7 +252,7 @@ int valveCalibrate( void ){
 	deltaCount = valve.hollCount / 90;
 	valve.curDeg = 90;
 	valve.adjDeg = startHollCount / deltaCount;
-	valve.prevDeg = 0xFF;
+
 	return ret;
 }
 
@@ -289,10 +292,7 @@ int driveProcess( void ){
 					driveStop();
 				}
 				valve.state = STATE_CORRECT;
-				if( valve.prevDeg != valve.curDeg ){
-					canSendMsg( VALVE_DEG, valve.curDeg );
-					valve.prevDeg = valve.curDeg;
-				}
+				// canSendMsg( VALVE_DEG, valve.curDeg );
 			}
 			break;
 		default:
@@ -336,7 +336,7 @@ void HOLL_IRQHandler( void ){
 }
 
 static void msfDelay( void ){
-	for( uint16_t i = 0; i < 30; i++){
+	for( uint16_t i = 0; i < 10; i++){
 		__NOP();
 	}
 }

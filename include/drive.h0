@@ -8,8 +8,7 @@
 #ifndef DRIVE_H_
 #define DRIVE_H_
 
-#include "stm32f10x.h"
-//#include "can.h"
+#include "stm32f10x_conf.h"
 
 
 typedef enum {
@@ -46,7 +45,6 @@ typedef enum {
 
 typedef struct {
 	uint8_t curDeg;
-	uint8_t prevDeg;
 	uint8_t adjDeg;
 	int32_t hollCount;
 	eState state;
@@ -60,46 +58,44 @@ extern volatile tValve valve;
 #define DRIVE_CH1_PIN 										GPIO_Pin_15
 #define DRIVE_CH2_PIN 										GPIO_Pin_12
 
+#define DRIVE_RCC_GPIO 										RCC_APB2Periph_GPIOB
 #define DRIVE_CH1N_PIN 										GPIO_Pin_13
-#define DRIVE_CH1N_PIN_NUM								(uint32_t)13
 #define DRIVE_CH2N_PIN 										GPIO_Pin_14
-#define DRIVE_CH2N_PIN_NUM								(uint32_t)14
 #define DRIVE_PORT 												GPIOB
 #define DRIVE_RCC_TIM 										RCC_APB2Periph_TIM1
 #define DRIVE_TIM 												TIM1
 #define DRIVE_TIM_CH1_PULSE(X) 						X ? GPIO_WriteBit(DRIVE_PORT, DRIVE_CH1_PIN, Bit_SET) : GPIO_WriteBit(DRIVE_PORT, DRIVE_CH1_PIN, Bit_RESET);
-#define DRIVE_TIM_CH2_PULSE(X) 						X ? GPIO_WriteBit(DRIVE_PORT, DRIVE_CH2_PIN, Bit_SET) : GPIO_WriteBit(DRIVE_PORT, DRIVE_CH2_PIN, Bit_RESET);
-
-//#define DRIVE_TIM_CH1N_PULSE(X) 						X ? GPIO_WriteBit(DRIVE_PORT, DRIVE_CH1N_PIN, Bit_RESET) : GPIO_WriteBit(DRIVE_PORT, DRIVE_CH1N_PIN, Bit_SET);
-//#define DRIVE_TIM_CH2N_PULSE(X) 						X ? GPIO_WriteBit(DRIVE_PORT, DRIVE_CH2N_PIN, Bit_RESET) : GPIO_WriteBit(DRIVE_PORT, DRIVE_CH2N_PIN, Bit_SET);
-
 #define DRIVE_TIM_CH1N_PULSE(X) 					TIM1->CCR1 = X
+#define DRIVE_TIM_CH2_PULSE(X) 						X ? GPIO_WriteBit(DRIVE_PORT, DRIVE_CH2_PIN, Bit_SET) : GPIO_WriteBit(DRIVE_PORT, DRIVE_CH2_PIN, Bit_RESET);
 #define DRIVE_TIM_CH2N_PULSE(X) 					TIM1->CCR2 = X
-
-#define DRIVE_PORT_CLK_ENABLE							RCC->AHB1ENR |= RCC_AHB1ENR_GPIOEEN
+#define DRIVE_PORT_CLK_ENABLE							RCC->APB2ENR |= RCC_APB2ENR_IOPBEN
 
 #define SWITCH_OPEN_PIN 									GPIO_Pin_7
-#define SWITCH_OPEN_PIN_NUM						  	7
 #define SWITCH_OPEN_PORT 									GPIOB
-#define SWITCH_OPEN_PORT_NUM						  1 // GPIOB
+#define SWITCH_OPEN_PINSOURCE 						GPIO_PinSource7
+#define SWITCH_OPEN_PORTSOURCE						GPIO_PortSourceGPIOB
 #define SWITCH_OPEN_EXTI_LINE							EXTI_Line7
+#define SWITCH_OPEN_PORT_CLK_ENABLE				RCC->APB2ENR |= RCC_APB2ENR_IOPBEN
 
 #define SWITCH_CLOSE_PIN 									GPIO_Pin_6
-#define SWITCH_CLOSE_PIN_NUM 							6
 #define SWITCH_CLOSE_PORT 								GPIOB
-#define SWITCH_CLOSE_PORT_NUM							1
+#define SWITCH_CLOSE_PINSOURCE 						GPIO_PinSource6
+#define SWITCH_CLOSE_PORTSOURCE						GPIO_PortSourceGPIOB
 #define SWITCH_CLOSE_EXTI_LINE 						EXTI_Line6
+#define SWITCH_CLOSE_PORT_CLK_ENABLE			RCC->APB2ENR |= RCC_APB2ENR_IOPBEN
 
 #define SWITCH_IRQCHANNEL 								EXTI9_5_IRQn
 #define SWITCH_IRQHANDLER 								EXTI9_5_IRQHandler
 
 #define HOLL_SIN_PIN	 										GPIO_Pin_11
-#define HOLL_SIN_PIN_NUM									11
 #define HOLL_COS_PIN 											GPIO_Pin_10
-#define HOLL_COS_PIN_NUM									10
 #define HOLL_PORT 												GPIOB
-#define HOLL_PORT_NUM											1
+#define HOLL_IRQCHANNEL			 							EXTI15_10_IRQn
+#define HOLL_IRQHANDLER 									EXTI15_10_IRQHandler
+#define HOLL_PORTSOURCE 									GPIO_PortSourceGPIOB
+#define HOLL_PINSOURCE 										GPIO_PinSource10
 #define HOLL_EXTI_LINE 										EXTI_Line10
+#define HOLL_PORT_CLK_ENABLE							RCC->APB2ENR |= RCC_APB2ENR_IOPBEN
 
 #define TEST_PIN		 											GPIO_Pin_8
 #define TEST_PORT 												GPIOA
