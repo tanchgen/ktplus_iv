@@ -130,7 +130,7 @@ void canFilterInit( void ){
 	filter.idMask = 0;
 #else
 	filter.idList = setIdList( &canId );
-	filter.idMask = CUR_ADJ_MASK | MSG_ID_MASK;
+	filter.idMask = CUR_ADJ_MASK | COLD_HOT_MASK | MSG_ID_MASK;
 #endif
 
 	filter.ideList = 0;
