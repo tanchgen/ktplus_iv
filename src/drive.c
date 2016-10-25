@@ -121,7 +121,8 @@ int hollInit( void ){
 	EXTI_InitTypeDef holl_EXTI_InitStructure;
 	GPIO_InitTypeDef holl_InitStructure;
 
-	RCC->APB1ENR |= RCC_APB2ENR_IOPBEN;
+	RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
+	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
 
 	holl_InitStructure.GPIO_Pin = HOLL_SIN_PIN | HOLL_COS_PIN;
 	holl_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -146,7 +147,8 @@ int switchInit( void ){
 	EXTI_InitTypeDef switch_EXTI_InitStructure;
 	GPIO_InitTypeDef switch_InitStructure;
 
-	RCC->APB1ENR |= RCC_APB2ENR_IOPBEN;
+	RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
+	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
 
 	switch_InitStructure.GPIO_Pin = SWITCH_OPEN_PIN | SWITCH_CLOSE_PIN;
 	switch_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
