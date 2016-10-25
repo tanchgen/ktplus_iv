@@ -48,7 +48,7 @@ void canInit(void)
 {
 	NVIC_InitTypeDef CAN_NVIC_InitStruct;
 
-#define DEV_SIGNATURE			(0x1FFF7A10+8)
+#define DEV_SIGNATURE			(0x1FFFF7E8+8)
 	valveDevId = (*(uint32_t *)DEV_SIGNATURE) & 0xFFFFF;
 
 	RCC->APB1ENR |= RCC_APB1Periph_CAN1;
