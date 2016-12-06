@@ -57,9 +57,9 @@ int driveInit( void ){
 
 	// TIM PWM Init
 	drivePwmInit();
-	driveStop();
   // Enable the TIM Main Output
   DRIVE_TIM->BDTR |= TIM_BDTR_MOE;
+	driveStop();
 
   return ret;
 }
@@ -88,7 +88,7 @@ static int drivePwmInit( void ){
 	uint32_t clkDiv;
 	//Находим частоту тактирования таймера
 	clkDiv = (RCC_Clocks.PCLK2_Frequency * (((RCC->CFGR & RCC_CFGR_PPRE1) & 0x4)?2:1));
-	// Частота ШИМ = 200000 Гц
+	// Частота ШИМ = 100 Гц
 	clkDiv /= 100*FULL_SPEED;
 	DRIVE_TimeBaseStructure.TIM_Prescaler = clkDiv - 1;
 	DRIVE_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -234,23 +234,33 @@ int valveCalibrate( void ){
 	int ret = 0;
 
 	// Закрываем задвижку
-	driveStart( DIR_BACKWARD, FULL_SPEED );
+	driveStart( DIR_BACKWARD, HALF_SPEED );
 	while( valve.sw != SW_CLOSE )
 	{}
+	startHollCount = -valve.hollCount;
 	driveStop();
 	// Задвижка закрыта
-	startHollCount = -valve.hollCount;
 	valve.hollCount = 0;
 	valve.curDeg = 0;
 	// Открываем задвижку
-	driveStart( DIR_FOREWARD, FULL_SPEED );
+	driveStart( DIR_FOREWARD, HALF_SPEED );
 	while( valve.sw != SW_OPEN )
 	{}
-	driveStop();
-	// Задвижка открыта
 	deltaCount = valve.hollCount / 90;
+	driveStop();
+	canSendMsg( IMP_TOTAL, valve.hollCount );
+	valve.prevCount = valve.hollCount;
+	// Задвижка открыта
 	valve.curDeg = 90;
-	valve.adjDeg = startHollCount / deltaCount;
+	if(startHollCount < 0){
+		valve.adjDeg = 0;
+	}
+	else {
+		valve.adjDeg = startHollCount / deltaCount;
+	}
+	if(valve.adjDeg > 90){
+		valve.adjDeg = 90;
+	}
 	valve.prevDeg = 0xFF;
 	return ret;
 }
@@ -275,7 +285,7 @@ int driveProcess( void ){
 					driveStop();
 				}
 				if( valve.dir == DIR_STOP ){
-					driveStart( DIR_FOREWARD, FULL_SPEED );
+					driveStart( DIR_FOREWARD, HALF_SPEED );
 				}
 			}
 			else if( valve.curDeg > valve.adjDeg ){
@@ -283,7 +293,7 @@ int driveProcess( void ){
 					driveStop();
 				}
 				if( valve.dir == DIR_STOP ){
-					driveStart( DIR_BACKWARD, FULL_SPEED );
+					driveStart( DIR_BACKWARD, HALF_SPEED );
 				}
 			}
 			else {
@@ -293,7 +303,9 @@ int driveProcess( void ){
 				valve.state = STATE_CORRECT;
 				if( valve.prevDeg != valve.curDeg ){
 					canSendMsg( VALVE_DEG, valve.curDeg );
+					canSendMsg( IMP_EXEC, valve.hollCount - valve.prevCount );
 					valve.prevDeg = valve.curDeg;
+					valve.prevCount = valve.hollCount;
 				}
 			}
 			break;
@@ -338,7 +350,7 @@ void HOLL_IRQHandler( void ){
 }
 
 static void msfDelay( void ){
-	for( uint16_t i = 0; i < 30; i++){
+	for( uint16_t i = 0; i < 100; i++){
 		__NOP();
 	}
 }

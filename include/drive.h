@@ -49,6 +49,7 @@ typedef struct {
 	uint8_t prevDeg;
 	uint8_t adjDeg;
 	int32_t hollCount;
+	int32_t prevCount;
 	eState state;
 	eSwitch sw;
 	eDirect dir;

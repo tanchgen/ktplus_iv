@@ -41,38 +41,34 @@ int main(int argc, char* argv[]) {
   // Общая инициализация контроллера
   valveInit();
 
+  myDelay(1000);
   while (1) {
  		timersProcess();
  		canProcess();
  		driveProcess();
 
 /*
-  	 while( (buttonCount & 0x1) == 0 )
-  	 {}
+	 for( uint16_t i = 1000; i < 6000; i += 1000 ){
   	 driveStart( DIR_BACKWARD, FULL_SPEED );
-  	 myDelay(1000);
-  	 driveStart( DIR_FOREWARD, FULL_SPEED );
-  	 myDelay(1000);
-  	 driveStart( DIR_BACKWARD, HALF_SPEED );
-  	 myDelay(1000);
-  	 driveStart( DIR_FOREWARD, HALF_SPEED );
-  	 myDelay(1000);
-  	 driveStart( DIR_BACKWARD, QUART_SPEED );
-  	 myDelay(1000);
-  	 driveStart( DIR_FOREWARD, QUART_SPEED );
-  	 myDelay(1000);
-  	 driveStop();
-  	 driveStart( DIR_FOREWARD, FULL_SPEED );
-  	 myDelay(3000);
-  	 driveStop();
-  	 driveStart( DIR_FOREWARD, HALF_SPEED );
-  	 myDelay(3000);
-  	 driveStop();
-  	 driveStart( DIR_FOREWARD, QUART_SPEED );
-  	 myDelay(3000);
-
+  	 myDelay(i);
    	 driveStop();
-   	 */
+  	 driveStart( DIR_FOREWARD, FULL_SPEED );
+  	 myDelay(i);
+   	 driveStop();
+  	 driveStart( DIR_BACKWARD, HALF_SPEED );
+  	 myDelay(i);
+   	 driveStop();
+  	 driveStart( DIR_FOREWARD, HALF_SPEED );
+  	 myDelay(i);
+   	 driveStop();
+  	 driveStart( DIR_BACKWARD, QUART_SPEED );
+  	 myDelay(i);
+   	 driveStop();
+  	 driveStart( DIR_FOREWARD, QUART_SPEED );
+  	 myDelay(i);
+  	 driveStop();
+	 }
+*/
   }
 }
 

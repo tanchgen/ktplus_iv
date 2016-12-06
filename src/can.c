@@ -49,7 +49,7 @@ void canInit(void)
 	NVIC_InitTypeDef CAN_NVIC_InitStruct;
 
 #define DEV_SIGNATURE			(0x1FFFF7E8+8)
-	valveDevId = (*(uint32_t *)DEV_SIGNATURE) & 0xFFFFF;
+	selfDevId = (*(uint32_t *)DEV_SIGNATURE) & 0xFFFFF;
 
 	RCC->APB1ENR |= RCC_APB1Periph_CAN1;
 
@@ -119,7 +119,7 @@ void canFilterInit( void ){
 
 // Формируем фильтр для приема пакетов от S207
 	canId.adjCur = ADJ;
-	canId.coldHot = CIRCUIT;
+	canId.coldHot = 1;
 	canId.msgId = VALVE_DEG;
 	canId.s207 = S207_DEV;
 	canId.devId = selfDevId;
@@ -130,7 +130,7 @@ void canFilterInit( void ){
 	filter.idMask = 0;
 #else
 	filter.idList = setIdList( &canId );
-	filter.idMask = CUR_ADJ_MASK | COLD_HOT_MASK | MSG_ID_MASK;
+	filter.idMask = CUR_ADJ_MASK | MSG_ID_MASK | DEV_ID_MASK;
 #endif
 
 	filter.ideList = 0;
@@ -140,6 +140,24 @@ void canFilterInit( void ){
 	filterNum = 0;
 
 	canFilterUpdate( &filter, filterNum );
+
+	// Для сообщения TIME
+	canId.adjCur = ADJ;
+	canId.msgId = TIME;
+	// Фильтр принимаемых устройств
+#if CAN_TEST
+// Для тестирования в колбцевом режиме - маска = 0x00000000
+	filter.idList = 0;
+	filter.idMask = 0;
+#else
+	filter.idList = setIdList( &canId );
+	filter.idMask = CUR_ADJ_MASK | MSG_ID_MASK;
+#endif
+
+	filterNum = 1;
+
+	canFilterUpdate( &filter, filterNum );
+
 }
 
 void canFilterUpdate( tFilter * filter, uint8_t filterNum ) {
@@ -263,6 +281,10 @@ void canProcess( void ){
   			if( valve.adjDeg > 90 ){
   				valve.adjDeg = 90;
   			}
+  			if( valve.adjDeg == valve.curDeg ){
+  				canSendMsg( VALVE_DEG, valve.curDeg );
+					canSendMsg( IMP_EXEC, 0 );
+  			}
   			break;
   		case TIME:
   			uxTime = *((uint32_t *)&rxMessage.Data);
@@ -280,31 +302,17 @@ void canSendMsg( eMessId msgId, uint32_t data ) {
 	tCanId canId;
 	// Формируем структуру canId
 
-	if( msgId == VALVE_DEG ){
-		// Если отправляем новое полодение задвижки контроллеру задвижки
-		canId.adjCur = ADJ;
-// TODO: 	Идентификатор контроллера задвижки
-		canId.devId = valveDevId;
-	}
-	else {
-		canId.adjCur = CUR;
-		canId.devId = selfDevId;
-	}
-
+	canId.adjCur = CUR;
+	canId.devId = selfDevId;
 	canId.msgId = msgId;
 	canId.coldHot = CIRCUIT;
 	canId.s207 = nS207_DEV;
 
-	if ( (msgId == TO_IN_MSG) || (msgId == TO_OUT_MSG) || (msgId == TO_DELTA_HOUR) ) {
-		// Для температуры - данные 16-и битные со знаком
-		*((int16_t *)canTxMsg.Data) = *((int16_t *)&data);
-		canTxMsg.DLC = 2;
-	}
-	else {
-		// Для всех, кроме температуры, беззнаковое 32-х битное целое
-		*((uint32_t *)canTxMsg.Data) = data;
-		canTxMsg.DLC = 4;
-	}
+	// Включаем системное время
+	*((uint32_t *)canTxMsg.Data) = (uint32_t)uxTime;
+	// Для всех, кроме температуры, беззнаковое 32-х битное целое
+	*((uint32_t *)(canTxMsg.Data+4)) = data;
+	canTxMsg.DLC = 8;
 
 	canTxMsg.ExtId = setIdList( &canId );
 	canTxMsg.IDE = CAN_Id_Extended;
