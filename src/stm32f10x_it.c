@@ -183,6 +183,42 @@ void TIM4_IRQHandler( void ){
 	DEBOUNCE_TIM->SR &= ~TIM_SR_UIF;
 }
 
+
+void RTC_IRQHandler(void){
+	if( RTC->CRL & RTC_CRL_SECF ){
+		uxTime++;
+		sysRtc.SecFlag = SET;
+		RTC->CRL &= ~RTC_CRL_SECF;
+		// Секундный таймер
+		utime2Tm( &sysRtc, uxTime );
+			// Выставляем флаги минут, часов, дней, недель и месяцев
+		if( sysRtc.sec == 0 ){
+			sysRtc.MinFlag = SET;
+			if( sysRtc.min == 0){
+				sysRtc.HourFlag = SET;
+				if( sysRtc.hour == 0){
+					sysRtc.DayFlag = SET;
+					if( sysRtc.wday == 1){
+						sysRtc.WeekFlag = SET;
+					}
+					if( sysRtc.mday == 1){
+						sysRtc.MonthFlag = SET;
+					}
+				}
+			}
+		}
+	}
+	if( RTC->CRL & RTC_CRL_ALRF ){
+		RTC->CRL &= ~RTC_CRL_ALRF;
+	}
+	// Переполнение счетного регистра
+	if(RTC->CRL & RTC_CRL_OWF) {
+     RTC->CRL &= ~RTC_CRL_OWF;     //сбросить флаг (обязательно!!!)
+     //выполняем какие-то действия
+	}
+}
+
+
 void USB_LP_CAN1_RX0_IRQHandler(void)
 {
 	canRx0IrqHandler();

@@ -15,8 +15,6 @@
 	uint32_t selfDevId;
 	uint32_t valveDevId;
 
-#define CIRCUIT			COLD
-
 void getIdList( tCanId *canid, uint32_t extId);
 
 void canCoreInit( void ){
@@ -254,22 +252,18 @@ void canSceIrqHandler(void) {
 
 void canProcess( void ){
 	CanRxMsg rxMessage;
-  /* Select one empty transmit mailbox */
-  if( ((CAN1->TSR & CAN_TSR_TME0) == CAN_TSR_TME0) ||
+	CanTxMsg txMessage;
+
+  // Select one empty transmit mailbox
+	if( canTxBuf.begin != canTxBuf.end ){
+		if( ((CAN1->TSR & CAN_TSR_TME0) == CAN_TSR_TME0) ||
   		((CAN1->TSR & CAN_TSR_TME1) == CAN_TSR_TME1) ||
 			((CAN1->TSR & CAN_TSR_TME2) == CAN_TSR_TME2) ){
-
-  	CanTxMsg txMessage;
-
 //Читаем предназначенные для отправки сообщения, если они есть, и запихиваем его в буфер отправки.
-  	if (  readBuff( &canTxBuf, (uint8_t *)&txMessage) ) {
-			CAN_Transmit(CAN1, (CanTxMsg *)&txMessage);
+			if (  readBuff( &canTxBuf, (uint8_t *)&txMessage) ) {
+				CAN_Transmit(CAN1, (CanTxMsg *)&txMessage);
+			}
 		}
-  	else {
-
-  	}
-
-
   }
 
   if( readBuff( &canRxBuf, (uint8_t *)&rxMessage) ) {
@@ -288,7 +282,19 @@ void canProcess( void ){
   			break;
   		case TIME:
   			uxTime = *((uint32_t *)&rxMessage.Data);
-  			xUtime2Tm( &sysDate, &sysTime, uxTime );
+  			// Allow access to BKP Domain
+  			PWR_BackupAccessCmd(ENABLE);
+  			// Wait until last write operation on RTC registers has finished
+  			RTC_WaitForLastTask();
+  			// Set initial value
+  			RTC_SetCounter( uxTime );
+  			// Wait until last write operation on RTC registers has finished
+  			RTC_WaitForLastTask();
+  			// Lock access to BKP Domain
+  			if( (RCC->BDCR & RCC_BDCR_RTCSEL ) != RCC_BDCR_RTCSEL ){
+  				//RTC тактируется не от HSE
+  				PWR_BackupAccessCmd(DISABLE);
+  			}
   			break;
   		default:
   			break;
@@ -297,7 +303,7 @@ void canProcess( void ){
 
 }
 
-void canSendMsg( eMessId msgId, uint32_t data ) {
+void canSendMsg( eMsgId msgId, uint32_t data ) {
 	CanTxMsg canTxMsg;
 	tCanId canId;
 	// Формируем структуру canId
@@ -305,7 +311,6 @@ void canSendMsg( eMessId msgId, uint32_t data ) {
 	canId.adjCur = CUR;
 	canId.devId = selfDevId;
 	canId.msgId = msgId;
-	canId.coldHot = CIRCUIT;
 	canId.s207 = nS207_DEV;
 
 	// Включаем системное время
@@ -324,16 +329,14 @@ void canSendMsg( eMessId msgId, uint32_t data ) {
 
 uint32_t setIdList( tCanId *canid ){
  return 	( (((canid->adjCur)<<28) & CUR_ADJ_MASK)	|
-		 	 	 	 	(((canid->msgId)<<22) & MSG_ID_MASK)		|
-						(((canid->coldHot)<<21) & COLD_HOT_MASK)|
+		 	 	 	 	(((canid->msgId)<<21) & MSG_ID_MASK)		|
 						(((canid->s207)<<20) & S207_MASK)				|
 						((canid->devId) & DEV_ID_MASK) );
 }
 
 void getIdList( tCanId *canid, uint32_t extId){
 	canid->adjCur = (extId & CUR_ADJ_MASK) >> 28;
-	canid->msgId =  (extId & MSG_ID_MASK) >> 22;
-	canid->coldHot = (extId & COLD_HOT_MASK) >> 21;
+	canid->msgId =  (extId & MSG_ID_MASK) >> 21;
 	canid->s207 = (extId & S207_MASK) >> 20;
 	canid->devId = (extId & DEV_ID_MASK);
 }

@@ -20,52 +20,135 @@
 //#include "thermo.h"
 
 volatile timer_ticks_t timer_delayCount;
-volatile time_t uxTime;
+volatile uTime_t uxTime;
 volatile uint32_t myTick;
 volatile uint32_t usDelFlag;
 
-tDate sysDate;
-tTime sysTime;
+tRTC sysRtc;
 
 extern RCC_ClocksTypeDef RCC_Clocks;
 
 uint32_t toReadCount;
-uint8_t  secondFlag = FALSE;
 
-/*
-// *********** Инициализация структуры ВРЕМЯ (сейчас - системное ) ************
-void timeInit( void ) {
-	RTC_InitTypeDef rtcInitStruct;
-  RTC_DateTypeDef  sdatestructure;
-  RTC_TimeTypeDef  stimestructure;
 
-  RTC_StructInit( &rtcInitStruct );
-  RTC_Init( &rtcInitStruct );
-  //##-1- Configure the Date #################################################
-  // Set Date: Wednesday June 1st 2016
-  sdatestructure.RTC_Year = 16;
-  sdatestructure.RTC_Month = RTC_Month_June;
-  sdatestructure.RTC_Date = 1;
-  sdatestructure.RTC_WeekDay = RTC_Weekday_Wednesday;
+/*******************************************************************************
+* Function Name  : rtc_init
+* Description    : initializes HW RTC,
+*                  sets default time-stamp if RTC has not been initialized before
+* Input          : None
+* Output         : None
+* Return         : not used
+*  Based on code from a STM RTC example in the StdPeriph-Library package
+*******************************************************************************/
+int rtcInit( eClkSrc src, uTime_t t) {
+	volatile uint16_t i;
+	uint16_t psc;				// Прескалер тактирования RTC
 
-  if(RTC_SetDate( RTC_Format_BIN ,&sdatestructure ) != SUCCESS)
-  {
-    // Initialization Error
-    genericError( GEN_ERR_HW );
-  }
+	// Enable PWR and BKP clocks
+  RCC->APB1ENR |= (RCC_APB1Periph_PWR | RCC_APB1Periph_BKP);
 
-  stimestructure.RTC_Hours = 0;
-  stimestructure.RTC_Minutes = 0;
-  stimestructure.RTC_Seconds = 0;
+	/* LSI clock stabilization time */
+	for(i=0;i<5000;i++) { ; }
 
-  if(RTC_SetTime( rtcInitStruct.RTC_HourFormat ,&stimestructure ) != SUCCESS)
-  {
-    // Initialization Error
-    genericError( GEN_ERR_HW );
-  }
 
+	/* Allow access to BKP Domain */
+	PWR_BackupAccessCmd(ENABLE);
+
+	/* Reset Backup Domain */
+	BKP_DeInit();
+
+	switch( src ){
+		case SRC_LSE:
+			// Enable LSE
+			RCC_LSEConfig(RCC_LSE_ON);
+			// Wait till LSE is ready
+			while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET) { ; }
+			// Select LSE as RTC Clock Source
+		  RCC->BDCR |= RCC_BDCR_RTCSEL_LSI;
+			psc = 32767; // RTC period = RTCCLK/RTC_PR = (32.768 KHz)/(32767+1)
+			break;
+		case SRC_LSI:
+			RCC->CSR |= RCC_CSR_LSION;
+			while ( (RCC->CSR & RCC_CSR_LSIRDY) == RESET)
+			{}
+			// Select LSI as RTC Clock Source
+		  RCC->BDCR |= RCC_BDCR_RTCSEL_LSI;
+			psc = 39999; // RTC period = RTCCLK/RTC_PR = (40 KHz)/(39999+1)
+			break;
+		case SRC_HSE128:
+			// Select HSE/128 as RTC Clock Source
+		  RCC->BDCR |= RCC_BDCR_RTCSEL_HSE;
+			psc = (HSE_VALUE/128) - 1; // RTCCLK = (HSE_VALUE)/(128), RTC_PR = (RTCCLK / RTC period) - 1
+//			PWR->CR |= PWR_CR_DBP;
+			break;
+		default:
+			//Недопустимое значение
+			return -1;
+			break;
+	}
+	/* Enable RTC Clock */
+	RCC_RTCCLKCmd(ENABLE);
+
+	/* Wait for RTC registers synchronization */
+	RTC_WaitForSynchro();
+
+	// Wait until last write operation on RTC registers has finished
+	RTC_WaitForLastTask();
+
+	/* Set RTC prescaler: set RTC period to 1sec */
+	RTC_SetPrescaler(psc);
+
+	// Wait until last write operation on RTC registers has finished
+	RTC_WaitForLastTask();
+
+	/* Set initial value */
+	RTC_SetCounter( (uint32_t)t ); // here: 1st January 2000 11:55:00
+
+	// Wait until last write operation on RTC registers has finished
+	RTC_WaitForLastTask();
+
+//		BKP_WriteBackupRegister(BKP_DR1, 0xA5A5);
+
+	if( (RCC->BDCR & RCC_BDCR_RTCSEL ) != RCC_BDCR_RTCSEL ){
+		//RTC тактируется не от HSE
+		PWR_BackupAccessCmd(DISABLE);
+	}
+
+	return 0;
 }
-*/
+
+
+/*!
+ * @brief Configures the RTC timer
+ * @note The timer is based on the RTC
+ * @param none
+ * @retval none
+ */
+void rtcSetConfig( void ) {
+  sysRtc.year = 2016;
+  sysRtc.month = 12;
+  sysRtc.mday = 21;
+  sysRtc.hour = 12;
+  sysRtc.min = 0;
+  sysRtc.sec = 0;
+  sysRtc.SecFlag = RESET;
+  sysRtc.MinFlag = RESET;
+  sysRtc.HourFlag = RESET;
+  sysRtc.DayFlag = RESET;
+  sysRtc.WeekFlag = RESET;
+  sysRtc.MonthFlag = RESET;
+  sysRtc.YearFlag = RESET;
+
+  // Для перерасчета дня недели
+  uxTime = tm2Utime( &sysRtc );
+  utime2Tm( &sysRtc, uxTime );
+
+  rtcInit( SRC_HSE128, uxTime );
+	RTC_ITConfig( RTC_IT_SEC, ENABLE);
+	NVIC_EnableIRQ( RTC_IRQn );
+	NVIC_SetPriority( RTC_IRQn, 1 );
+}
+
 
 // Получение системного мремени
 uint32_t getTick( void ) {
@@ -78,7 +161,7 @@ uint32_t sys_now( void ){
 }
 #define _TBIAS_DAYS		((70 * (uint32_t)365) + 17)
 #define _TBIAS_SECS		(_TBIAS_DAYS * (uint32_t)86400)
-#define	_TBIAS_YEAR		0
+#define	_TBIAS_YEAR		1900
 #define MONTAB(year)		((((year) & 03) || ((year) == 0)) ? mos : lmos)
 
 const int16_t	lmos[] = {0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335};
@@ -88,33 +171,33 @@ const int16_t	mos[] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
 
 /////////////////////////////////////////////////////////////////////
 
-time_t xTm2Utime( tDate *mdate, tTime *mtime ){
+uTime_t tm2Utime( const tRTC *mrtc ){
 	/* convert time structure to scalar time */
 int32_t		days;
 int32_t		secs;
 int32_t		mon, year;
 
 	/* Calculate number of days. */
-	mon = mdate->Month - 1;
-	year = mdate->Year - _TBIAS_YEAR;
+	mon = mrtc->month - 1;
+	year = mrtc->year - _TBIAS_YEAR;
 	days  = Daysto32(year, mon) - 1;
 	days += 365 * year;
-	days += mdate->Date;
+	days += mrtc->mday;
 	days -= _TBIAS_DAYS;
 
 	/* Calculate number of seconds. */
-	secs  = 3600 * mtime->Hours;
-	secs += 60 * mtime->Minutes;
-	secs += mtime->Seconds;
+	secs  = 3600 * mrtc->hour;
+	secs += 60 * mrtc->min;
+	secs += mrtc->sec;
 
-	secs += (days * (time_t)86400);
+	secs += (days * (uTime_t)86400);
 
 	return (secs);
 }
 
 /////////////////////////////////////////////////////////////////////
 
-void xUtime2Tm( tDate * mdate, tTime *mtime, time_t secsarg){
+void utime2Tm( tRTC * mrtc, uTime_t secsarg){
 	uint32_t		secs;
 	int32_t		days;
 	int32_t		mon;
@@ -138,23 +221,23 @@ void xUtime2Tm( tDate * mdate, tTime *mtime, time_t secsarg){
 		/* days, hour, min, sec */
 	days += secs / 86400;
 	secs = secs % 86400;
-	mtime->Hours = secs / 3600;
+	mrtc->hour = secs / 3600;
 	secs %= 3600;
-	mtime->Minutes = secs / 60;
-	mtime->Seconds = secs % 60;
+	mrtc->min = secs / 60;
+	mrtc->sec = secs % 60;
 
-	mdate->WeekDay = (days + 1) % 7;
+	mrtc->wday = (days + 1) % 7;
 
 	/* determine year */
 	for (year = days / 365; days < (i = Daysto32(year, 0) + 365*year); ) { --year; }
 	days -= i;
-	mdate->Year = year + _TBIAS_YEAR;
+	mrtc->year = year + _TBIAS_YEAR;
 
 		/* determine month */
 	pm = MONTAB(year);
 	for (mon = 12; days < pm[--mon]; );
-	mdate->Month = mon + 1;
-	mdate->Date = days - pm[mon] + 1;
+	mrtc->month = mon + 1;
+	mrtc->mday = days - pm[mon] + 1;
 }
 
 void timersHandler( void ) {
@@ -174,12 +257,6 @@ void timersHandler( void ) {
 		toReadCount--;
 	}
 
-	// Секундный таймер
-	if ( !(myTick % 1000) ) {
-		secondFlag = TRUE;
-		uxTime++;
-		xUtime2Tm( &sysDate, &sysTime, uxTime );
-	}
 
 
 }
@@ -192,13 +269,16 @@ void timersProcess( void ) {
 		toLogWrite();
 	}
 */
-	// Флаг "Прошла еще  одна секунда"
-	if ( secondFlag ) {
-		secondFlag = FALSE;
-		if ( sysTime.Seconds == 0 ){
-			// Каждую минуту отправляем текущее  положение задвижки
-			canSendMsg( VALVE_DEG, valve.curDeg );
-		}
+
+	// Секундный таймер
+#if (0)
+	if ( sysRtc.SecFlag ) {
+		sysRtc.SecFlag = RESET;
+	}
+#endif
+	if ( sysRtc.MinFlag ) {
+		sysRtc.MinFlag = RESET;
+		canSendMsg( VALVE_DEG, valve.curDeg );
 	}
 }
 

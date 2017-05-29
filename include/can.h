@@ -27,18 +27,6 @@
 #define CAN1_TX_IRQn  USB_HP_CAN1_TX_IRQn     /*!< USB Device High Priority or CAN1 TX Interrupts       */
 #define CAN1_RX0_IRQn  USB_LP_CAN1_RX0_IRQn   /*!< USB Device Low Priority or CAN1 RX0 Interrupts       */
 
-/*
-
-#define CAN_RX0_NVIC_IRQCHANNEL 			CAN1_RX0_IRQn
-#define CAN_RX0_NVIC_IRQHANDLER 			CAN1_RX0_IRQHandler
-#define CAN_RX1_NVIC_IRQCHANNEL 			CAN1_RX1_IRQn
-#define CAN_RX1_NVIC_IRQHANDLER 			CAN1_RX1_IRQHandler
-#define CAN_TX_NVIC_IRQCHANNEL 				CAN1_TX_IRQn
-#define CAN_TX_NVIC_IRQHANDLER 				CAN1_TX_IRQHandler
-#define CAN_SCE_NVIC_IRQCHANNEL 			CAN1_SCE_IRQn
-#define CAN_SCE_NVIC_IRQHANDLER 			CAN1_SCE_IRQHandler
-*/
-
 #define CAN_RX_MESSAGE_LEN		sizeof(tCanMessage)
 #define CAN_RX_BUFFER_SIZE 		16
 #define CAN_TX_BUFFER_SIZE 		4
@@ -56,19 +44,9 @@ typedef struct CanMessageStruct
 } tCanMessage;
 
 #define CUR_ADJ_MASK		(uint32_t)0x10000000
-#define MSG_ID_MASK			(uint32_t)0x0FC00000
-#define COLD_HOT_MASK		(uint32_t)0x00200000
+#define MSG_ID_MASK			(uint32_t)0x0FE00000
 #define S207_MASK				(uint32_t)0x00100000
 #define DEV_ID_MASK			(uint32_t)0x000FFFFF
-
-/*
-#define CUR_ADJ_MASK				(uint32_t)0x00000400				// 11 (Старший) бит в StdId
-#define MSG_ID_MASK					(uint32_t)0x000003F0				// 10-5 биты StdId
-#define COLD_HOT_MASK				(uint32_t)0x00000008				// 4 бит StdId
-#define S207_MASK						(uint32_t)0x00000004				// 3 бит StdId
-#define DEV_ID_HI_BIT_MASK	(uint32_t)0x00000003				// 2-1 биты StdId - 18 и 19 биты DEV_ID
-#define DEV_ID_LOW_BIT_MASK	(uint32_t)0x1FFFF800				// 28-12 биты StdId- с 0-го по 17-й биты DEV_ID
-*/
 
 typedef struct {
 	uint8_t adjCur;		// Действующее-задаваемое
@@ -107,8 +85,34 @@ typedef enum {							// Условный номер сообщения
 	VALVE_ID,									// ID контоллера задвижки
 	IMP_TOTAL,								// Общее количество импульсов от 0 до 90 гр.
 	IMP_EXEC,									// Количество импульсов пройденное с последнего раза
-	TIME,											// Дата-Время
-	DEG0_FAULT = 0x21,				// Неисправность концевого датчика 0гр.
+
+	TIME = 0x0F,							// Дата-Время
+
+// Сообщения от электросчетчика
+	AWATT_NOW = 0x10,         // Действующее значение потребляемой мощности
+  AENRG_DAY = 0x11,         // Значение потребляемой мощности за сутки
+  AENRG_DAY_SUM = 0x12,     // Значение потребляемой мощности за сутки с нарастающим итогом
+  AENRG_MON = 0x13,         // Значение потребляемой мощности за месяц
+  AENRG_MON_SUM = 0x14,     // Значение потребляемой мощности за месяц с нарастающим итогом
+	AWATT_MON_MAX = 0x15,     // Пиковое значение потребляемой мощности за месяц
+	// Сообщения от S207
+	WGAIN_A = 0x16,           // Коэффициент коррекции мощности - Фаза A
+  WGAIN_B = 0x17,           // Коэффициент коррекции мощности - Фаза B
+  WGAIN_C = 0x18,           // Коэффициент коррекции мощности - Фаза C
+  WGAIN_N = 0x19,           // Коэффициент коррекции мощности - Фаза N
+  WOS_A = 0x1A,             // Коэффициент коррекции мощности - Фаза A
+  WOS_B = 0x1B,             // Коэффициент коррекции мощности - Фаза B
+  WOS_C = 0x1C,             // Коэффициент коррекции мощности - Фаза C
+  WOS_N = 0x1D,             // Коэффициент коррекции мощности - Фаза N
+	WATT_SEND_TOUT = 0x1E,    // Интервал отправки данных
+
+	// От S207 - задаются параметры, к S207 - превышены значения параметров
+	WATT_MAX  = 0x1F,         // Максимум потребляемой мощности
+	CUR_MAX = 0x20,           // Максимальный ток в цепи
+	VOLT_MAX = 0x21,          // Максимальное напряжение в цепи
+
+// Ошибки в системе
+	DEG0_FAULT = 0x31,				// Неисправность концевого датчика 0гр.
 	DEG90_FAULT,							// Неисправность концевого датчика 90гр.
 	VALVE_SENS_FAULT,					// Неисправность датчика положения задвижки
 	VALE_MOT_FAULT,						// Неисправность мотора задвижки
@@ -117,12 +121,7 @@ typedef enum {							// Условный номер сообщения
 	FLOW_SENS_FAULT,					// Неисправность датчика расходомера
 	DEV_FAULT,								// Нисправность контроллера
 
-} eMessId;
-
-typedef enum {				// Нагревательный/охладительный контур
-	COLD,
-	HOT,
-} eColdHot;
+} eMsgId;
 
 enum _eS207 {
 	nS207_DEV = 0,			// Поле признака НЕ-S207 - устройство
@@ -131,8 +130,7 @@ enum _eS207 {
 
 typedef struct {			// Структура CAN-сообщения
 	eCurAdj curAdj;
-	eMessId messId;
-	eColdHot coldHot;
+	eMsgId messId;
 	uint32_t devId;			// Идентификационный номер контроллера ( Serial ID MCU )
 } tIdStruct;
 
@@ -149,7 +147,7 @@ void canFilterUpdate( tFilter * filter, uint8_t filterNum );
 
 void canProcess( void );
 
-void canSendMsg( eMessId msgId, uint32_t data );
+void canSendMsg( eMsgId msgId, uint32_t data );
 
 void canRx0IrqHandler(void);
 void canRx1IrqHandler(void);

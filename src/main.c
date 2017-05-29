@@ -41,6 +41,8 @@ int main(int argc, char* argv[]) {
   // Общая инициализация контроллера
   valveInit();
 
+  rtcSetConfig();
+
   myDelay(1000);
   while (1) {
  		timersProcess();
